@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+build/
+
+# Generated benchmark executables
+src/cpu/benchmark
+src/cpu/benchmark_*
