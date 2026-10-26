@@ -1,49 +1,60 @@
+import ctypes
 from pathlib import Path
-import re
 import statistics
-import subprocess
 import sys
+import time
 
-executables = sys.argv[1:]
-
-if not executables:
-    raise SystemExit(
-        "Usage: python benchmark.py <executable>..."
-    )
+import numpy as np
 
 sizes = [256, 512, 1024]
-runs = 5
+warmups = 3
+runs = 10
 
 for n in sizes:
     print(f"n = {n}")
 
-    for exe in executables:
-        values = []
+    rng = np.random.default_rng(42)
+    A = rng.random((n, n), dtype=np.float32)
+    B = rng.random((n, n), dtype=np.float32)
+    C = np.empty((n, n), dtype=np.float32)
+
+    for lib_path in sys.argv[1:]:
+        lib = ctypes.CDLL(lib_path)
+        matmul = lib.matmul
+
+        float_ptr = ctypes.POINTER(ctypes.c_float)
+        matmul.argtypes = [
+            float_ptr, float_ptr, float_ptr,
+            ctypes.c_int, ctypes.c_int, ctypes.c_int,
+        ]
+        matmul.restype = None
+
+        def run():
+            matmul(
+                A.ctypes.data_as(float_ptr),
+                B.ctypes.data_as(float_ptr),
+                C.ctypes.data_as(float_ptr),
+                n, n, n,
+            )
+
+        for _ in range(warmups):
+            run()
+
+        times = []
 
         for _ in range(runs):
-            result = subprocess.run(
-                [exe, str(n)],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
+            start = time.perf_counter_ns()
+            run()
+            elapsed = time.perf_counter_ns() - start
+            times.append(elapsed * 1e-9)
 
-            match = re.search(
-                r"performance = ([0-9.]+) GFLOPS/s",
-                result.stdout,
-            )
+        flops = 2 * n**3
+        performances = [flops / t / 1e9 for t in times]
 
-            if match is None:
-                raise RuntimeError(
-                    f"could not parse output from {exe}"
-                )
+        median_time = statistics.median(times)
+        median_gflops = flops / median_time / 1e9
 
-            values.append(float(match.group(1)))
-
-        print(f"  {Path(exe).name}")
-        print(f"    runs   = {values}")
-        print(
-            f"    median = {statistics.median(values):.3f} GFLOP/s"
-        )
-
-    print()
+        print(f"  {Path(lib_path).stem}")
+        print(f"    runs   = {[round(p, 3) for p in performances]}")
+        print(f"    time   = {median_time:.6f} s")
+        print(f"    median = {median_gflops:.3f} GFLOP/s")

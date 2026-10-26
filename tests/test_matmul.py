@@ -1,3 +1,4 @@
+
 import ctypes
 import os
 from pathlib import Path
@@ -13,6 +14,13 @@ SHAPES = (
 )
 
 LIBRARIES = os.environ.get("MINGEMM_TEST_LIBS", "").split()
+
+if not LIBRARIES:
+    raise RuntimeError(
+        "MINGEMM_TEST_LIBS is not set. "
+        "Run tests using 'make test'."
+    )
+
 PTR = ctypes.POINTER(ctypes.c_float)
 
 
