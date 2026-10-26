@@ -47,9 +47,9 @@ void matmul(
             C[i * N + jj + 7] = c7;
         }
 
-        for (; jj < N; ++jj) {
+        for (; jj < N; jj++) {
             float acc = 0.0f;
-            for (int k = 0; k < K; ++k) {
+            for (int k = 0; k < K; k++) {
                 acc += A[i * K + k] * B[k * N + jj];
             }
             C[i * N + jj] = acc;
