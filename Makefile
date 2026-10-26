@@ -7,7 +7,7 @@ SRC := src/cpu
 BUILD := build
 LIB := $(BUILD)/lib
 
-VARIANTS := naive ikj blocked microkernel blocked_microkernel
+VARIANTS := naive ikj blocked microkernel microkernel_simd microkernel_simd4x8 blocked_microkernel
 BLOCK_SIZES := 16 32 64 128 256 512
 
 LIB_NORMAL := $(addprefix $(LIB)/,$(addsuffix .so,$(VARIANTS)))
