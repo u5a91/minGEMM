@@ -5,12 +5,10 @@
 #endif
 
 void matmul(
-    const float *A,
-    const float *B,
-    float *C,
-    int M,
-    int N,
-    int K
+    const float *restrict A,
+    const float *restrict B,
+    float *restrict C,
+    int M, int N, int K
 )
 {
     for (int i = 0; i < M * N; i++) {
