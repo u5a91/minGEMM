@@ -1,4 +1,4 @@
-#include <stddef.h>
+#include "mingemm/cpu.h"
 
 void matmul(
     const float *restrict A,

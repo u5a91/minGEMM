@@ -1,5 +1,6 @@
+#include "mingemm/cpu.h"
+
 #include <immintrin.h>
-#include <stddef.h>
 
 #ifndef BS
 #define BS 128

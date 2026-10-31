@@ -1,5 +1,6 @@
+#include "mingemm/cpu.h"
+
 #include <immintrin.h>
-#include <stddef.h>
 
 void matmul(
     const float *restrict A,

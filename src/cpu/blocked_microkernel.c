@@ -1,4 +1,4 @@
-#include <stddef.h>
+#include "mingemm/cpu.h"
 
 #ifndef BS
 #define BS 128

@@ -4,14 +4,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-void matmul(
-    const float *A,
-    const float *B,
-    float *C,
-    int M,
-    int N,
-    int K
-);
+#include "mingemm/cpu.h"
 
 static double now_sec(void)
 {
