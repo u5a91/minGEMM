@@ -73,7 +73,7 @@ make cuda CUDA_ARCH=-arch=sm_80
 The benchmark uses square FP32 matrices of sizes **256, 512, and 1024**, with **3 warm-up runs** and **10 timed runs** per implementation. Throughput is calculated from the median elapsed time:
 
 $$
-\text{GFLOP/s} = \frac{2n^3}{10^9 \cdot \operatorname{median}(\text{elapsed seconds})}.
+\text{GFLOP/s} = \frac{2n^3}{10^9 \cdot \text{median}(\text{elapsed seconds})}.
 $$
 
 Values below are from individual experimental sessions, not repeated independent benchmark sessions. Performance is hardware- and environment-dependent.
