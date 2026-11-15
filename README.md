@@ -37,6 +37,8 @@ The current `naive_cuda` implementation assigns **one output element to each CUD
 - `matmul_cuda_naive_async` in [`include/mingemm/cuda.cuh`](include/mingemm/cuda.cuh) takes device pointers and a CUDA stream. It enqueues the operation without synchronizing the stream.
 - A synchronous host-pointer `matmul` adapter supports the same Python tests and benchmark harness as the CPU variants. This adapter is a test/benchmark shim, not part of the public CUDA API. It allocates device buffers, transfers inputs and outputs, and synchronizes execution.
 
+CUDA performance is measured in two ways. The C++ driver in [`src/cuda/benchmark.cu`](src/cuda/benchmark.cu) (`make bench-cuda`) allocates device buffers once and times only kernel execution with CUDA events, excluding host-to-device and device-to-host copies. The Python harness (`make bench-cuda-e2e`) goes through the synchronous host-copy adapter, so its numbers include allocation, transfers, and synchronization.
+
 ## Build and run
 
 ### Requirements
@@ -57,7 +59,8 @@ make bench
 # CUDA (optional)
 make cuda
 make test-cuda
-make bench-cuda
+make bench-cuda        # kernel-only throughput
+make bench-cuda-e2e    # end-to-end throughput (host-copy adapter)
 ```
 
 The Makefile currently defaults to `CUDA_ARCH=-arch=sm_86` (used for the RTX A5000). Override it for another GPU, for example:
@@ -96,13 +99,44 @@ The table shows selected implementations. Run `make bench` to benchmark all CPU 
 
 ### CUDA results
 
-**Environment:** NVIDIA RTX A5000; CUDA Toolkit 13.2. Values are in **GFLOP/s**.
+Kernel-only timing is the primary CUDA metric because it isolates kernel
+execution from host-side allocation and transfer costs. End-to-end timing is
+reported separately because it depends heavily on the environment.
+
+#### Kernel-only
+
+**Environment:** NVIDIA RTX A5000; CUDA Toolkit 13.2; containerized Linux
+environment. **Command:** `make bench-cuda` (3 warm-up launches; median of 10
+timed launches).
 
 | Implementation | n = 256 | n = 512 | n = 1024 |
 | --- | ---: | ---: | ---: |
-| `naive_cuda` | 91.836 | 257.917 | 660.534 |
+| `naive_cuda` | 1369.792 | 1622.241 | 1701.090 |
 
-**Important:** `make bench-cuda` times the *synchronous host-copy adapter*, including GPU allocations, host-to-device and device-to-host transfers, kernel execution, and synchronization. The reported GFLOP/s is an **end-to-end effective throughput**, **not kernel-only throughput**. The CPU and GPU benchmarks were also run in different environments; the two tables should not be used to claim a controlled CPU-versus-GPU speedup.
+Values are in **GFLOP/s**. The driver in
+[`src/cuda/benchmark.cu`](src/cuda/benchmark.cu) allocates device buffers once
+and times only the asynchronous kernel entry point with CUDA events, so device
+allocation and H2D/D2H copies are excluded. At n = 1024 the naive kernel
+reaches about 6% of the A5000's approximately 27.8 TFLOP/s FP32 peak, leaving
+substantial room for shared-memory tiling and register blocking.
+
+#### End-to-end
+
+`make bench-cuda-e2e` goes through the synchronous host-copy adapter and
+includes device allocation, H2D/D2H transfers, and synchronization. In a
+containerized run on the same machine, the medians were 6.382 / 41.421 /
+351.938 GFLOP/s at n = 256 / 512 / 1024, with individual runs at n = 256
+varying by more than an order of magnitude (about 1.4–38 GFLOP/s).
+
+Median wall-clock time stayed at roughly 5–6 ms across all sizes even though
+the kernel alone took 0.024–1.262 ms. Because the adapter allocates and frees
+device buffers on every call, these values are dominated by fixed host-side API
+overhead in that environment rather than by kernel execution or transfer
+volume. No end-to-end table is reported; use the kernel-only results to compare
+implementations.
+
+The CPU and GPU benchmarks were also run in different environments, so the
+results should not be used to claim a controlled CPU-versus-GPU speedup.
 
 ## Project layout
 
@@ -110,16 +144,16 @@ The table shows selected implementations. Run `make bench` to benchmark all CPU 
 benchmarks/       Python benchmark harness
 include/mingemm/  CPU and CUDA interface headers
 src/cpu/          CPU implementation variants
-src/cuda/         CUDA implementation(s)
+src/cuda/         CUDA kernels and the kernel-only benchmark driver
 tests/            NumPy-based correctness tests
 Makefile          Build, test, and benchmark targets
 ```
 
 ## Next steps
 
-- Measure **kernel-only** CUDA runtime using CUDA events and preallocated device buffers.
-- Implement a shared-memory tiled CUDA GEMM kernel and compare it with the naive kernel.
+- Implement a shared-memory tiled CUDA GEMM kernel and compare kernel-only throughput with the naive kernel.
 - Compare with cuBLAS under matched data types, matrix sizes, and timing boundaries.
+- Reuse device buffers in the host-copy adapter so end-to-end timing is not dominated by per-call allocation.
 - Improve benchmark repeatability (for example, by controlling background load and documenting compiler/CPU settings).
 
 ## AI use
